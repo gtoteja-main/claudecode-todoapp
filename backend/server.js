@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import tasksRouter from "./routes/tasks.js";
@@ -13,7 +14,7 @@ app.use(requestLogger);
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/tasks", tasksRouter);
 
-// ── 404 handler (unknown routes) ──────────────────────────────────────────────
+// ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", path: req.originalUrl });
 });
@@ -29,7 +30,6 @@ app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function requestLogger(req, _res, next) {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();

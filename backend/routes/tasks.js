@@ -4,73 +4,61 @@ import { validateCreate, validateUpdate } from "../validation.js";
 
 const router = Router();
 
-// GET /api/tasks
-// Returns all tasks, optionally filtered by ?status=active|completed
-router.get("/", (req, res) => {
-  const { status } = req.query;
-  let tasks = store.getAll();
+// Wrap async route handlers so thrown errors reach the global error handler
+const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
-  if (status === "active") tasks = tasks.filter((t) => !t.completed);
-  else if (status === "completed") tasks = tasks.filter((t) => t.completed);
-  else if (status !== undefined) {
+// GET /api/tasks?status=active|completed
+router.get("/", wrap(async (req, res) => {
+  const { status } = req.query;
+  if (status && !["active", "completed"].includes(status)) {
     return res.status(400).json({ error: "status must be 'active' or 'completed'" });
   }
-
+  const tasks = await store.getAll({ status });
   res.json(tasks);
-});
+}));
 
 // GET /api/tasks/:id
-router.get("/:id", (req, res, next) => {
-  const task = store.getById(parseId(req.params.id));
+router.get("/:id", wrap(async (req, res, next) => {
+  const task = await store.getById(Number(req.params.id));
   if (!task) return next(notFound(req.params.id));
   res.json(task);
-});
+}));
 
 // POST /api/tasks
-router.post("/", (req, res, next) => {
-  const error = validateCreate(req.body);
-  if (error) return next(badRequest(error));
-
-  const task = store.create(req.body.title.trim());
+router.post("/", wrap(async (req, res, next) => {
+  const err = validateCreate(req.body);
+  if (err) return next(badRequest(err));
+  const task = await store.create(req.body.title.trim());
   res.status(201).json(task);
-});
+}));
 
 // PUT /api/tasks/:id
-router.put("/:id", (req, res, next) => {
-  const id = parseId(req.params.id);
-  if (!store.getById(id)) return next(notFound(req.params.id));
-
-  const error = validateUpdate(req.body);
-  if (error) return next(badRequest(error));
-
-  const updated = store.update(id, req.body);
+router.put("/:id", wrap(async (req, res, next) => {
+  const id = Number(req.params.id);
+  const existing = await store.getById(id);
+  if (!existing) return next(notFound(req.params.id));
+  const err = validateUpdate(req.body);
+  if (err) return next(badRequest(err));
+  const updated = await store.update(id, req.body);
   res.json(updated);
-});
+}));
 
 // DELETE /api/tasks/:id
-router.delete("/:id", (req, res, next) => {
-  const id = parseId(req.params.id);
-  if (!store.getById(id)) return next(notFound(req.params.id));
-
-  store.remove(id);
+router.delete("/:id", wrap(async (req, res, next) => {
+  const id = Number(req.params.id);
+  const existing = await store.getById(id);
+  if (!existing) return next(notFound(req.params.id));
+  await store.remove(id);
   res.status(204).end();
-});
+}));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function parseId(raw) {
-  return parseInt(raw, 10);
-}
-
+// ── Error factories ───────────────────────────────────────────────────────────
 function notFound(id) {
-  const err = new Error(`Task ${id} not found`);
-  err.status = 404;
-  return err;
+  return Object.assign(new Error(`Task ${id} not found`), { status: 404 });
 }
 
 function badRequest(message) {
-  const err = new Error(message);
-  err.status = 400;
-  return err;
+  return Object.assign(new Error(message), { status: 400 });
 }
 
 export default router;
