@@ -1,6 +1,6 @@
 import TodoItem from "./TodoItem";
 
-export default function TodoList({ todos, onUpdate, onDelete }) {
+export default function TodoList({ todos, onUpdate, onDelete, opErrors = {}, onDismissError }) {
   if (todos.length === 0) {
     return (
       <div style={styles.empty}>
@@ -19,8 +19,14 @@ export default function TodoList({ todos, onUpdate, onDelete }) {
   return (
     <ul style={styles.list}>
       {todos.map((todo, i) => (
-        <li key={todo.id} style={{ ...styles.item, ...(i < todos.length - 1 ? styles.itemBorder : {}) }}>
-          <TodoItem todo={todo} onUpdate={onUpdate} onDelete={onDelete} />
+        <li key={todo.id} style={i < todos.length - 1 ? styles.itemBorder : undefined}>
+          <TodoItem
+            todo={todo}
+            onUpdate={onUpdate}
+            onDelete={onDelete}
+            error={opErrors[todo.id]}
+            onDismissError={() => onDismissError?.(todo.id)}
+          />
         </li>
       ))}
     </ul>
@@ -34,7 +40,6 @@ const styles = {
     borderRadius: "14px",
     overflow: "hidden",
   },
-  item: {},
   itemBorder: {
     borderBottom: "1px solid #eef5ff",
   },

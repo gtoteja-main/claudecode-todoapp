@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { api } from "./api";
 import Header from "./components/Header";
 import AddTodo from "./components/AddTodo";
 import FilterBar from "./components/FilterBar";
@@ -7,41 +8,75 @@ import TodoList from "./components/TodoList";
 export default function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
+  // Per-screen loading/error
+  const [loadingInit, setLoadingInit] = useState(true);
+  const [initError, setInitError] = useState(null);
+
+  // Per-operation feedback
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState(null);
+  const [opErrors, setOpErrors] = useState({}); // { [todoId]: errorMessage }
+
+  const clearOpError = (id) =>
+    setOpErrors((prev) => { const next = { ...prev }; delete next[id]; return next; });
+
+  // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/todos")
-      .then((r) => r.json())
-      .then((data) => { setTodos(data); setLoading(false); })
-      .catch(() => { setError("Failed to connect to server."); setLoading(false); });
+    api.getTodos()
+      .then((data) => setTodos(data))
+      .catch((err) => setInitError(err.message))
+      .finally(() => setLoadingInit(false));
   }, []);
 
-  const addTodo = async (title) => {
-    const res = await fetch("/api/todos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-    const todo = await res.json();
-    setTodos((prev) => [...prev, todo]);
-  };
+  // ── Create ────────────────────────────────────────────────────────────────
+  const addTodo = useCallback(async (title) => {
+    setAdding(true);
+    setAddError(null);
+    try {
+      const todo = await api.createTodo(title);
+      setTodos((prev) => [...prev, todo]);
+    } catch (err) {
+      setAddError(err.message);
+    } finally {
+      setAdding(false);
+    }
+  }, []);
 
-  const updateTodo = async (id, changes) => {
-    const res = await fetch(`/api/todos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(changes),
-    });
-    const updated = await res.json();
-    setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
-  };
+  // ── Toggle complete / Edit title ──────────────────────────────────────────
+  const updateTodo = useCallback(async (id, changes) => {
+    // Optimistic update
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...changes } : t)));
+    clearOpError(id);
+    try {
+      const updated = await api.updateTodo(id, changes);
+      setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } catch (err) {
+      // Roll back
+      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...revertChanges(t, changes) } : t)));
+      setOpErrors((prev) => ({ ...prev, [id]: err.message }));
+    }
+  }, []);
 
-  const deleteTodo = async (id) => {
-    await fetch(`/api/todos/${id}`, { method: "DELETE" });
-    setTodos((prev) => prev.filter((t) => t.id !== id));
-  };
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const deleteTodo = useCallback(async (id) => {
+    const snapshot = todos.find((t) => t.id === id);
+    setTodos((prev) => prev.filter((t) => t.id !== id)); // optimistic
+    clearOpError(id);
+    try {
+      await api.deleteTodo(id);
+    } catch (err) {
+      if (snapshot) setTodos((prev) => [...prev, snapshot]); // roll back
+      setOpErrors((prev) => ({ ...prev, [id]: err.message }));
+    }
+  }, [todos]);
 
+  // ── Clear completed ───────────────────────────────────────────────────────
+  const clearCompleted = useCallback(() => {
+    todos.filter((t) => t.completed).forEach((t) => deleteTodo(t.id));
+  }, [todos, deleteTodo]);
+
+  // ── Derived state ──────────────────────────────────────────────────────────
   const filtered = todos.filter((t) =>
     filter === "active" ? !t.completed : filter === "completed" ? t.completed : true
   );
@@ -56,29 +91,61 @@ export default function App() {
     <div style={styles.page}>
       <div style={styles.card}>
         <Header activeCount={counts.active} />
+
         <div style={styles.body}>
-          <AddTodo onAdd={addTodo} />
+          <AddTodo onAdd={addTodo} loading={adding} error={addError} />
           <FilterBar filter={filter} setFilter={setFilter} counts={counts} />
-          {loading && <p style={styles.status}>Loading tasks…</p>}
-          {error && <p style={styles.error}>{error}</p>}
-          {!loading && !error && (
-            <TodoList todos={filtered} onUpdate={updateTodo} onDelete={deleteTodo} />
+
+          {loadingInit && <LoadingSpinner />}
+          {initError && <Banner type="error">{initError}</Banner>}
+
+          {!loadingInit && !initError && (
+            <TodoList
+              todos={filtered}
+              onUpdate={updateTodo}
+              onDelete={deleteTodo}
+              opErrors={opErrors}
+              onDismissError={clearOpError}
+            />
           )}
         </div>
-        {!loading && !error && todos.length > 0 && (
+
+        {!loadingInit && !initError && todos.length > 0 && (
           <div style={styles.footer}>
             <span>{counts.active} task{counts.active !== 1 ? "s" : ""} left</span>
             {counts.completed > 0 && (
-              <button
-                style={styles.clearBtn}
-                onClick={() => todos.filter((t) => t.completed).forEach((t) => deleteTodo(t.id))}
-              >
+              <button style={styles.clearBtn} onClick={clearCompleted}>
                 Clear completed
               </button>
             )}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Helpers
+function revertChanges(original, attempted) {
+  // Return original values for the keys that were attempted to change
+  return Object.fromEntries(Object.keys(attempted).map((k) => [k, original[k]]));
+}
+
+function LoadingSpinner() {
+  return (
+    <div style={spinnerStyles.wrap}>
+      <div style={spinnerStyles.ring} />
+      <span style={spinnerStyles.text}>Loading tasks…</span>
+    </div>
+  );
+}
+
+function Banner({ type, children }) {
+  const isError = type === "error";
+  return (
+    <div style={{ ...bannerStyles.base, ...(isError ? bannerStyles.error : bannerStyles.info) }}>
+      <span>{isError ? "⚠️" : "ℹ️"}</span>
+      <span>{children}</span>
     </div>
   );
 }
@@ -121,21 +188,52 @@ const styles = {
     color: "#7aa3c8",
     fontSize: "13px",
     cursor: "pointer",
-    padding: "0",
     textDecoration: "underline",
     textUnderlineOffset: "2px",
+    fontFamily: "inherit",
+    padding: 0,
   },
-  status: {
-    textAlign: "center",
+};
+
+const spinnerStyles = {
+  wrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "10px",
+    padding: "32px 0",
+  },
+  ring: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    border: "3px solid #dbeeff",
+    borderTopColor: "#3b82f6",
+    animation: "spin 0.7s linear infinite",
+  },
+  text: {
+    fontSize: "13px",
     color: "#7aa3c8",
-    padding: "24px 0",
-    fontSize: "14px",
+  },
+};
+
+const bannerStyles = {
+  base: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "12px 14px",
+    borderRadius: "10px",
+    fontSize: "13px",
   },
   error: {
     background: "#fef2f2",
     color: "#dc2626",
-    borderRadius: "10px",
-    padding: "12px 16px",
-    fontSize: "14px",
+    border: "1px solid #fecaca",
+  },
+  info: {
+    background: "#f0f7ff",
+    color: "#1d6fd8",
+    border: "1px solid #bcd5f0",
   },
 };

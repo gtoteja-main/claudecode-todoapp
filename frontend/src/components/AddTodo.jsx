@@ -1,47 +1,82 @@
 import { useState } from "react";
 
-export default function AddTodo({ onAdd }) {
+export default function AddTodo({ onAdd, loading, error }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!value.trim()) return;
-    onAdd(value.trim());
-    setValue("");
+    if (!value.trim() || loading) return;
+    await onAdd(value.trim());
+    setValue(""); // only clear on success (onAdd throws on error)
   };
 
-  const active = value.trim().length > 0;
+  const active = value.trim().length > 0 && !loading;
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <div style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : {}) }}>
-        <svg style={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94b8d8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Add a new task…"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-      </div>
-      <button type="submit" style={{ ...styles.btn, ...(active ? styles.btnActive : {}) }} disabled={!active}>
-        Add
-      </button>
-    </form>
+    <div style={styles.wrap}>
+      <form onSubmit={handleSubmit} style={styles.form}>
+        <div style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : {}) }}>
+          {loading ? <Spinner /> : <PlusIcon />}
+          <input
+            style={styles.input}
+            type="text"
+            placeholder="Add a new task…"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            disabled={loading}
+            aria-label="New task title"
+          />
+        </div>
+        <button
+          type="submit"
+          style={{ ...styles.btn, ...(active ? styles.btnActive : {}) }}
+          disabled={!active}
+          aria-label="Add task"
+        >
+          {loading ? "Adding…" : "Add"}
+        </button>
+      </form>
+
+      {error && (
+        <p style={styles.error} role="alert">
+          ⚠️ {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg style={{ flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94b8d8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{
+      width: "16px", height: "16px", borderRadius: "50%",
+      border: "2px solid #dbeeff", borderTopColor: "#3b82f6",
+      animation: "spin 0.7s linear infinite", flexShrink: 0,
+    }} />
   );
 }
 
 const styles = {
+  wrap: {
+    paddingTop: "20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
   form: {
     display: "flex",
     gap: "10px",
-    paddingTop: "20px",
   },
   inputWrap: {
     flex: 1,
@@ -58,9 +93,6 @@ const styles = {
     borderColor: "#3b82f6",
     boxShadow: "0 0 0 3px rgba(59,130,246,0.12)",
     background: "white",
-  },
-  searchIcon: {
-    flexShrink: 0,
   },
   input: {
     flex: 1,
@@ -82,11 +114,21 @@ const styles = {
     cursor: "not-allowed",
     transition: "all 0.2s",
     whiteSpace: "nowrap",
+    fontFamily: "inherit",
   },
   btnActive: {
     background: "#3b82f6",
     color: "white",
     cursor: "pointer",
     boxShadow: "0 4px 12px rgba(59,130,246,0.35)",
+  },
+  error: {
+    fontSize: "13px",
+    color: "#dc2626",
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+    padding: "8px 12px",
+    margin: 0,
   },
 };
