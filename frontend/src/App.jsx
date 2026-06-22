@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import TodoList from "./components/TodoList";
+import Header from "./components/Header";
 import AddTodo from "./components/AddTodo";
 import FilterBar from "./components/FilterBar";
+import TodoList from "./components/TodoList";
 
 export default function App() {
   const [todos, setTodos] = useState([]);
@@ -53,27 +54,29 @@ export default function App() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.container}>
-        <header style={styles.header}>
-          <div style={styles.headerIcon}>✓</div>
-          <h1 style={styles.title}>My Tasks</h1>
-          <p style={styles.subtitle}>Stay organized, get things done</p>
-        </header>
-
-        <AddTodo onAdd={addTodo} />
-
-        <FilterBar filter={filter} setFilter={setFilter} counts={counts} />
-
-        {loading && <div style={styles.message}>Loading tasks...</div>}
-        {error && <div style={styles.error}>{error}</div>}
-        {!loading && !error && (
-          <TodoList todos={filtered} onUpdate={updateTodo} onDelete={deleteTodo} />
-        )}
-
+      <div style={styles.card}>
+        <Header activeCount={counts.active} />
+        <div style={styles.body}>
+          <AddTodo onAdd={addTodo} />
+          <FilterBar filter={filter} setFilter={setFilter} counts={counts} />
+          {loading && <p style={styles.status}>Loading tasks…</p>}
+          {error && <p style={styles.error}>{error}</p>}
+          {!loading && !error && (
+            <TodoList todos={filtered} onUpdate={updateTodo} onDelete={deleteTodo} />
+          )}
+        </div>
         {!loading && !error && todos.length > 0 && (
-          <footer style={styles.footer}>
-            {counts.active} task{counts.active !== 1 ? "s" : ""} remaining
-          </footer>
+          <div style={styles.footer}>
+            <span>{counts.active} task{counts.active !== 1 ? "s" : ""} left</span>
+            {counts.completed > 0 && (
+              <button
+                style={styles.clearBtn}
+                onClick={() => todos.filter((t) => t.completed).forEach((t) => deleteTodo(t.id))}
+              >
+                Clear completed
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -83,63 +86,56 @@ export default function App() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(160deg, #dbeeff 0%, #e8f4fd 50%, #d6eaff 100%)",
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
-    padding: "40px 16px",
+    padding: "48px 16px 80px",
   },
-  container: {
+  card: {
     width: "100%",
-    maxWidth: "600px",
+    maxWidth: "560px",
+    background: "white",
+    borderRadius: "24px",
+    boxShadow: "0 4px 6px rgba(59,130,246,0.06), 0 20px 60px rgba(59,130,246,0.12)",
+    overflow: "hidden",
+  },
+  body: {
+    padding: "0 24px 8px",
     display: "flex",
     flexDirection: "column",
     gap: "16px",
   },
-  header: {
-    textAlign: "center",
-    color: "white",
-    marginBottom: "8px",
-  },
-  headerIcon: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.2)",
+  footer: {
     display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    fontSize: "28px",
-    margin: "0 auto 12px",
-    backdropFilter: "blur(10px)",
+    padding: "14px 24px",
+    borderTop: "1px solid #e8f2ff",
+    fontSize: "13px",
+    color: "#7aa3c8",
   },
-  title: {
-    fontSize: "32px",
-    fontWeight: "700",
-    letterSpacing: "-0.5px",
+  clearBtn: {
+    background: "none",
+    border: "none",
+    color: "#7aa3c8",
+    fontSize: "13px",
+    cursor: "pointer",
+    padding: "0",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
   },
-  subtitle: {
-    fontSize: "15px",
-    opacity: 0.8,
-    marginTop: "4px",
-    fontWeight: "400",
-  },
-  message: {
+  status: {
     textAlign: "center",
-    color: "rgba(255,255,255,0.8)",
-    padding: "32px",
+    color: "#7aa3c8",
+    padding: "24px 0",
+    fontSize: "14px",
   },
   error: {
-    background: "#fee2e2",
+    background: "#fef2f2",
     color: "#dc2626",
-    borderRadius: "12px",
-    padding: "16px",
-    textAlign: "center",
-  },
-  footer: {
-    textAlign: "center",
-    color: "rgba(255,255,255,0.7)",
+    borderRadius: "10px",
+    padding: "12px 16px",
     fontSize: "14px",
-    paddingBottom: "16px",
   },
 };

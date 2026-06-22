@@ -1,14 +1,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: "Inter", sans-serif;
-  background: #f0f4ff;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #e8f4fd;
   min-height: 100vh;
-  color: #1e293b;
+  color: #1a2b3c;
 }
 
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
 }

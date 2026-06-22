@@ -6,9 +6,8 @@ export default function TodoItem({ todo, onUpdate, onDelete }) {
   const [hovered, setHovered] = useState(false);
 
   const saveEdit = () => {
-    if (editValue.trim() && editValue.trim() !== todo.title) {
-      onUpdate(todo.id, { title: editValue.trim() });
-    }
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== todo.title) onUpdate(todo.id, { title: trimmed });
     setEditing(false);
   };
 
@@ -19,18 +18,25 @@ export default function TodoItem({ todo, onUpdate, onDelete }) {
 
   return (
     <div
-      style={{ ...styles.item, ...(hovered ? styles.itemHovered : {}), ...(todo.completed ? styles.itemDone : {}) }}
+      style={{ ...styles.row, ...(hovered ? styles.rowHovered : {}), ...(todo.completed ? styles.rowDone : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Checkbox */}
       <button
         onClick={() => onUpdate(todo.id, { completed: !todo.completed })}
-        style={{ ...styles.check, ...(todo.completed ? styles.checkDone : {}) }}
+        style={{ ...styles.checkbox, ...(todo.completed ? styles.checkboxDone : {}) }}
         title="Toggle complete"
+        aria-label={todo.completed ? "Mark incomplete" : "Mark complete"}
       >
-        {todo.completed && <span style={styles.checkMark}>✓</span>}
+        {todo.completed && (
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1.5 6 4.5 9 10.5 3" />
+          </svg>
+        )}
       </button>
 
+      {/* Text / Edit field */}
       <div style={styles.content}>
         {editing ? (
           <input
@@ -42,28 +48,43 @@ export default function TodoItem({ todo, onUpdate, onDelete }) {
             onKeyDown={handleKeyDown}
           />
         ) : (
-          <span style={{ ...styles.title, ...(todo.completed ? styles.titleDone : {}) }}>
+          <span
+            style={{ ...styles.label, ...(todo.completed ? styles.labelDone : {}) }}
+            onDoubleClick={() => { setEditValue(todo.title); setEditing(true); }}
+            title="Double-click to edit"
+          >
             {todo.title}
           </span>
         )}
       </div>
 
-      <div style={styles.actions}>
+      {/* Actions */}
+      <div style={{ ...styles.actions, opacity: hovered || editing ? 1 : 0 }}>
         {!editing && (
           <button
             onClick={() => { setEditValue(todo.title); setEditing(true); }}
-            style={styles.actionBtn}
-            title="Edit"
+            style={styles.iconBtn}
+            title="Edit task"
+            aria-label="Edit"
           >
-            ✏️
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
           </button>
         )}
         <button
           onClick={() => onDelete(todo.id)}
-          style={{ ...styles.actionBtn, ...styles.deleteBtn }}
-          title="Delete"
+          style={{ ...styles.iconBtn, ...styles.deleteBtn }}
+          title="Delete task"
+          aria-label="Delete"
         >
-          🗑️
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          </svg>
         </button>
       </div>
     </div>
@@ -71,94 +92,86 @@ export default function TodoItem({ todo, onUpdate, onDelete }) {
 }
 
 const styles = {
-  item: {
-    background: "white",
-    borderRadius: "12px",
-    padding: "14px 16px",
+  row: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    transition: "all 0.2s",
-    border: "2px solid transparent",
-  },
-  itemHovered: {
-    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-    transform: "translateY(-1px)",
-  },
-  itemDone: {
-    background: "#f8fafc",
-  },
-  check: {
-    width: "24px",
-    height: "24px",
-    borderRadius: "50%",
-    border: "2px solid #cbd5e1",
+    padding: "14px 16px",
     background: "white",
-    cursor: "pointer",
+    transition: "background 0.15s",
+  },
+  rowHovered: {
+    background: "#f8fbff",
+  },
+  rowDone: {
+    background: "#fafcff",
+  },
+  checkbox: {
+    width: "20px",
+    height: "20px",
+    borderRadius: "6px",
+    border: "1.5px solid #bcd5f0",
+    background: "white",
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "all 0.2s",
+    transition: "all 0.15s",
     padding: 0,
   },
-  checkDone: {
-    background: "linear-gradient(135deg, #667eea, #764ba2)",
-    borderColor: "#667eea",
-  },
-  checkMark: {
-    color: "white",
-    fontSize: "13px",
-    fontWeight: "700",
-    lineHeight: 1,
+  checkboxDone: {
+    background: "#3b82f6",
+    borderColor: "#3b82f6",
   },
   content: {
     flex: 1,
     minWidth: 0,
   },
-  title: {
-    fontSize: "15px",
-    fontWeight: "500",
-    color: "#1e293b",
+  label: {
+    fontSize: "14px",
+    fontWeight: "450",
+    color: "#1a2b3c",
     display: "block",
+    cursor: "default",
+    userSelect: "none",
   },
-  titleDone: {
+  labelDone: {
     textDecoration: "line-through",
-    color: "#94a3b8",
+    color: "#a0bdd8",
     fontWeight: "400",
   },
   editInput: {
     width: "100%",
     border: "none",
     outline: "none",
-    fontSize: "15px",
-    fontWeight: "500",
-    color: "#1e293b",
-    fontFamily: "Inter, sans-serif",
+    fontSize: "14px",
+    fontWeight: "450",
+    color: "#1a2b3c",
+    fontFamily: "inherit",
     background: "transparent",
-    borderBottom: "2px solid #667eea",
-    paddingBottom: "2px",
+    borderBottom: "1.5px solid #3b82f6",
+    paddingBottom: "1px",
   },
   actions: {
     display: "flex",
     gap: "4px",
     flexShrink: 0,
+    transition: "opacity 0.15s",
   },
-  actionBtn: {
-    width: "32px",
-    height: "32px",
+  iconBtn: {
+    width: "30px",
+    height: "30px",
     borderRadius: "8px",
     border: "none",
     background: "transparent",
-    cursor: "pointer",
-    fontSize: "15px",
+    color: "#7aa3c8",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background 0.15s",
+    cursor: "pointer",
+    transition: "background 0.15s, color 0.15s",
   },
   deleteBtn: {
-    color: "#ef4444",
+    color: "#f87171",
   },
 };
