@@ -23,7 +23,7 @@ export default function App() {
 
   // ── Initial fetch ─────────────────────────────────────────────────────────
   useEffect(() => {
-    api.getTodos()
+    api.getTasks()
       .then((data) => setTodos(data))
       .catch((err) => setInitError(err.message))
       .finally(() => setLoadingInit(false));
@@ -34,7 +34,7 @@ export default function App() {
     setAdding(true);
     setAddError(null);
     try {
-      const todo = await api.createTodo(title);
+      const todo = await api.createTask(title);
       setTodos((prev) => [...prev, todo]);
     } catch (err) {
       setAddError(err.message);
@@ -49,7 +49,7 @@ export default function App() {
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...changes } : t)));
     clearOpError(id);
     try {
-      const updated = await api.updateTodo(id, changes);
+      const updated = await api.updateTask(id, changes);
       setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch (err) {
       // Roll back
@@ -64,7 +64,7 @@ export default function App() {
     setTodos((prev) => prev.filter((t) => t.id !== id)); // optimistic
     clearOpError(id);
     try {
-      await api.deleteTodo(id);
+      await api.deleteTask(id);
     } catch (err) {
       if (snapshot) setTodos((prev) => [...prev, snapshot]); // roll back
       setOpErrors((prev) => ({ ...prev, [id]: err.message }));

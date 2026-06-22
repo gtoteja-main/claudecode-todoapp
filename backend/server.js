@@ -1,46 +1,36 @@
 import express from "express";
 import cors from "cors";
+import tasksRouter from "./routes/tasks.js";
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT ?? 3001;
 
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 
-let todos = [
-  { id: 1, title: "Buy groceries", completed: false, createdAt: new Date().toISOString() },
-  { id: 2, title: "Read a book", completed: true, createdAt: new Date().toISOString() },
-];
-let nextId = 3;
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use("/api/tasks", tasksRouter);
 
-app.get("/api/todos", (req, res) => {
-  res.json(todos);
+// ── 404 handler (unknown routes) ──────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found", path: req.originalUrl });
 });
 
-app.post("/api/todos", (req, res) => {
-  const { title } = req.body;
-  if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
-  const todo = { id: nextId++, title: title.trim(), completed: false, createdAt: new Date().toISOString() };
-  todos.push(todo);
-  res.status(201).json(todo);
+// ── Global error handler ──────────────────────────────────────────────────────
+app.use((err, req, res, _next) => {
+  console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, err.message);
+  const status = err.status ?? 500;
+  res.status(status).json({ error: err.message ?? "Internal server error" });
 });
 
-app.put("/api/todos/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const todo = todos.find((t) => t.id === id);
-  if (!todo) return res.status(404).json({ error: "Todo not found" });
-  const { title, completed } = req.body;
-  if (title !== undefined) todo.title = title.trim();
-  if (completed !== undefined) todo.completed = completed;
-  res.json(todo);
+app.listen(PORT, () => {
+  console.log(`Backend running on http://localhost:${PORT}`);
 });
 
-app.delete("/api/todos/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = todos.findIndex((t) => t.id === id);
-  if (index === -1) return res.status(404).json({ error: "Todo not found" });
-  todos.splice(index, 1);
-  res.status(204).send();
-});
-
-app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function requestLogger(req, _res, next) {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+}

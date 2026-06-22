@@ -16,14 +16,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getTodos: () => request("/api/todos"),
-
-  createTodo: (title) =>
-    request("/api/todos", { method: "POST", body: JSON.stringify({ title }) }),
-
-  updateTodo: (id, changes) =>
-    request(`/api/todos/${id}`, { method: "PUT", body: JSON.stringify(changes) }),
-
-  deleteTodo: (id) =>
-    request(`/api/todos/${id}`, { method: "DELETE" }),
+  getTasks:    ()           => request("/api/tasks"),
+  createTask:  (title)      => request("/api/tasks",      { method: "POST",   body: JSON.stringify({ title }) }),
+  updateTask:  (id, changes) => request(`/api/tasks/${id}`, { method: "PUT",    body: JSON.stringify(changes) }),
+  deleteTask:  (id)          => request(`/api/tasks/${id}`, { method: "DELETE" }),
 };
